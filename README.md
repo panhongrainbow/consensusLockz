@@ -152,3 +152,14 @@ Use the following commands to shutdown Consul Cluster
 ```bash
 $ sudo docker stop $(sudo docker ps -aq --no-trunc -f ancestor=consul)
 ```
+
+1. Consul的架構是什么?它由哪幾個部分組成?
+   Consul由Server, Client, UI等幾个部分組成。
+   Server負責存儲數據和處理查詢請求
+   Client負責健康檢查和服務注册,UI提供웹頁界面進行操作。
+2. Consul支援哪些服務發現模式?解释一下每种模式。
+   Consul支援DNS查詢, HTTP API, DNS SRV記錄等多種服務發現模式。每种模式具有不同的應用場景和優缺點。
+3. Consul的Consensus算法是什么?為什么選擇Raft算法?
+   Consul使用Raft算法實現分布式一致性Consensus。Raft算法是一種便於理解和實現的分布式一致算法,可以在可變的系統拓撲中實現強一致性,這正是Consul server需要的特性,所以選擇了Raft算法。
+4. Consul中Client到Server的RPC運行機制是怎樣的?
+   Client和Server之間的RPC通信基於gRPC框架。Client會定期向Server註冊其提供的服務和健康信息。Server則回復該Client最新的配置和數據等信息。這樣Client和Server之間能夠保持強一致的數據信息。

@@ -35,7 +35,6 @@ type Locker struct {
 	Client     *api.Client
 	SessionID  string
 	SessionTTL string
-	CreateAt   time.Time
 	MuLock     sync.Mutex
 	Opts       Options
 	cancel     chan done
@@ -55,13 +54,13 @@ func NewLocker(opts Options) (lock Locker, err error) {
 	return
 }
 
-func (lock *Locker) CreateClient() (err error) {
-	if lock.Client == nil {
+func (locker *Locker) CreateClient() (err error) {
+	if locker.Client == nil {
 		config := api.DefaultConfig()
-		if lock.Opts.Address != "" {
-			config.Address = lock.Opts.Address
+		if locker.Opts.Address != "" {
+			config.Address = locker.Opts.Address
 		}
-		lock.Client, err = api.NewClient(api.DefaultConfig())
+		locker.Client, err = api.NewClient(api.DefaultConfig())
 		if err != nil {
 			return
 		}
@@ -69,9 +68,9 @@ func (lock *Locker) CreateClient() (err error) {
 	return
 }
 
-func (lock *Locker) DestroyClient() (err error) {
-	if lock.Client != nil {
-		lock.Client = nil
+func (locker *Locker) DestroyClient() (err error) {
+	if locker.Client != nil {
+		locker.Client = nil
 		runtime.GC()
 	}
 	return

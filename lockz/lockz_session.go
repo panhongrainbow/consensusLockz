@@ -6,46 +6,22 @@ import (
 	"time"
 )
 
-func (lock *Locker) RenewSession(key string) (err error) {
-	ticker := time.NewTicker(lock.Opts.RenewPeriod)
-	go func() {
-		for {
-			select {
-			case <-ticker.C:
-				_, _, err = lock.Client.Session().Renew(lock.SessionID, nil)
-				if err != nil {
-					return
-				}
-				err = lock.Incr(key)
-				if err != nil {
-					return
-				}
-			case <-lock.cancel:
-				err = lock.DestroySession()
-				return
-			}
-		}
-	}()
-
+func (locker *Locker) RenewSession() (err error) {
+	_, _, err = locker.Client.Session().Renew(locker.SessionID, nil)
 	return
 }
 
-func (lock *Locker) CancelSession() (err error) {
-	lock.cancel <- done{}
-	return
-}
-
-func (lock *Locker) DestroySession() (err error) {
-	if lock.SessionID != "" {
-		_, err = lock.Client.Session().Destroy(lock.SessionID, nil)
-		lock.SessionID = ""
+func (locker *Locker) DestroySession() (err error) {
+	if locker.SessionID != "" {
+		_, err = locker.Client.Session().Destroy(locker.SessionID, nil)
+		locker.SessionID = ""
 		return err
 	}
 	return
 }
 
-func (lock *Locker) SwitchNewLockSession() (err error) {
-	err = lock.DestroySession()
+func (locker *Locker) SwitchNewLockSession() (err error) {
+	err = locker.DestroySession()
 	if err != nil {
 		return
 	}
@@ -54,19 +30,19 @@ func (lock *Locker) SwitchNewLockSession() (err error) {
 	sessionOpts := &api.SessionEntry{
 		Name:      "consensusLockz",
 		Behavior:  "delete",
-		TTL:       strconv.Itoa(int(lock.Opts.SessionTTLOpt.Seconds())) + "s",
+		TTL:       strconv.Itoa(int(locker.Opts.SessionTTLOpt.Seconds())) + "s",
 		LockDelay: 15 * time.Second,
 	}
 
 	//
-	if lock.Opts.SessionTTLOpt == 0 {
+	if locker.Opts.SessionTTLOpt == 0 {
 		sessionOpts.TTL = DEFAULT_SESSION_TIMEOUT
 	} else {
-		sessionOpts.TTL = strconv.Itoa(int(lock.Opts.SessionTTLOpt.Seconds())) + "s"
+		sessionOpts.TTL = strconv.Itoa(int(locker.Opts.SessionTTLOpt.Seconds())) + "s"
 	}
 
 	// Create a new session
-	lock.SessionID, _, err = lock.Client.Session().Create(sessionOpts, nil)
+	locker.SessionID, _, err = locker.Client.Session().Create(sessionOpts, nil)
 	if err != nil {
 		return err
 	}
@@ -75,9 +51,9 @@ func (lock *Locker) SwitchNewLockSession() (err error) {
 	return
 }
 
-func (lock *Locker) SwitchWaitLockSession() (err error) {
+func (locker *Locker) SwitchWaitLockSession() (err error) {
 
-	err = lock.DestroySession()
+	err = locker.DestroySession()
 	if err != nil {
 		return
 	}
@@ -86,12 +62,12 @@ func (lock *Locker) SwitchWaitLockSession() (err error) {
 	sessionOpts := &api.SessionEntry{
 		Name:      "consensusLockz",
 		Behavior:  "delete",
-		TTL:       strconv.Itoa(int(lock.Opts.SessionTTLOpt.Seconds())) + "s",
+		TTL:       strconv.Itoa(int(locker.Opts.SessionTTLOpt.Seconds())) + "s",
 		LockDelay: 15 * time.Second,
 	}
 
 	// Create a new session
-	lock.SessionID, _, err = lock.Client.Session().Create(sessionOpts, nil)
+	locker.SessionID, _, err = locker.Client.Session().Create(sessionOpts, nil)
 	if err != nil {
 		return err
 	}

@@ -6,43 +6,43 @@ import (
 	"github.com/hashicorp/consul/api"
 )
 
-func (lock *Locker) Lock(key string) (acquired bool, err error) {
+func (locker *Locker) Lock(key string) (acquired bool, err error) {
 	//
-	err = lock.SwitchWaitLockSession()
+	err = locker.SwitchWaitLockSession()
 	if err != nil {
 		return
 	}
-	_, err = lock.GetLockDetailNonblocking(key)
+	_, err = locker.GetLockDetailNonblocking(key)
 	switch err {
 	case ERROR_OCCPUY_BY_OTHER, ERROR_CANNOT_EXTEND:
-		err = lock.BlockOnReleased(key)
+		err = locker.BlockOnReleased(key)
 		if err == ERROR_LOCK_RELEASED {
-			err = lock.SwitchNewLockSession()
+			err = locker.SwitchNewLockSession()
 			if err != nil {
 				return
 			}
-			return lock.ObtainLock(key)
+			return locker.ObtainLock(key)
 		}
 	case ERROR_LOCK_RELEASED:
-		err = lock.SwitchNewLockSession()
+		err = locker.SwitchNewLockSession()
 		if err != nil {
 			return
 		}
-		return lock.ObtainLock(key)
+		return locker.ObtainLock(key)
 	default:
-		fmt.Println("teen or older")
+		return
 	}
 	return
 }
 
-func (lock *Locker) Incr(key string) (err error) {
+func (locker *Locker) Incr(key string) (err error) {
 	var keyPair *api.KVPair
-	keyPair, _, err = lock.Client.KV().Get(key, nil)
+	keyPair, _, err = locker.Client.KV().Get(key, nil)
 	if err != nil {
 		return
 	}
 
-	if keyPair.Value == nil {
+	if keyPair == nil {
 		err = ERROR_LOCK_RELEASED
 		return
 	}
@@ -50,18 +50,18 @@ func (lock *Locker) Incr(key string) (err error) {
 	var keyValue LockDetail
 	err = json.Unmarshal(keyPair.Value, &keyValue)
 
-	if lock.SessionID != keyValue.SessionID {
+	if locker.SessionID != keyValue.SessionID {
 		err = ERROR_OCCPUY_BY_OTHER
 		return
 	}
 
-	if lock.Opts.ExtendLimit <= keyValue.Extend {
+	if locker.Opts.ExtendLimit <= keyValue.Extend {
 		err = ERROR_CANNOT_EXTEND
 		return
 	}
 
 	value := LockDetail{
-		SessionID: lock.SessionID,
+		SessionID: locker.SessionID,
 		Extend:    keyValue.Extend + 1,
 	}
 
@@ -73,10 +73,10 @@ func (lock *Locker) Incr(key string) (err error) {
 	lockOpts := &api.KVPair{
 		Key:     key,
 		Value:   b,
-		Session: lock.SessionID,
+		Session: locker.SessionID,
 	}
 
-	_, err = lock.Client.KV().Put(lockOpts, nil)
+	_, err = locker.Client.KV().Put(lockOpts, nil)
 	if err != nil {
 		return
 	}
@@ -84,10 +84,15 @@ func (lock *Locker) Incr(key string) (err error) {
 	return
 }
 
-func (lock *Locker) GetLockDetailNonblocking(key string) (lockDetail LockDetail, err error) {
+func (locker *Locker) GetLockDetailNonblocking(key string) (lockDetail LockDetail, err error) {
 	var keyPair *api.KVPair
-	keyPair, _, err = lock.Client.KV().Get(key, nil)
+	keyPair, _, err = locker.Client.KV().Get(key, nil)
 	if err != nil {
+		return
+	}
+
+	if keyPair == nil {
+		err = ERROR_LOCK_RELEASED
 		return
 	}
 
@@ -96,29 +101,25 @@ func (lock *Locker) GetLockDetailNonblocking(key string) (lockDetail LockDetail,
 		return
 	}
 
-	if keyPair == nil {
-		err = ERROR_LOCK_RELEASED
-	}
-
-	if lockDetail.Extend >= lock.Opts.ExtendLimit {
+	if lockDetail.Extend >= locker.Opts.ExtendLimit {
 		err = ERROR_CANNOT_EXTEND
 	}
 
-	if lockDetail.SessionID != lock.SessionID {
+	if lockDetail.SessionID != locker.SessionID {
 		err = ERROR_OCCPUY_BY_OTHER
 	}
 
 	return
 }
 
-func (lock *Locker) BlockOnReleased(key string) (err error) {
+func (locker *Locker) BlockOnReleased(key string) (err error) {
 	var keyPair *api.KVPair
 	var queryMeta *api.QueryMeta
 
 	// start blocking
 	q := &api.QueryOptions{WaitIndex: 0}
 	for {
-		keyPair, queryMeta, err = lock.Client.KV().Get(key, q)
+		keyPair, queryMeta, err = locker.Client.KV().Get(key, q)
 
 		if keyPair == nil {
 			err = ERROR_LOCK_RELEASED
@@ -133,23 +134,23 @@ func (lock *Locker) BlockOnReleased(key string) (err error) {
 	}
 }
 
-func (lock *Locker) TryLock(key string) (err error) {
-	if lock.SessionID != "" {
-		_, err = lock.Client.Session().Destroy(lock.SessionID, nil)
-		lock.SessionID = ""
+func (locker *Locker) TryLock(key string) (err error) {
+	if locker.SessionID != "" {
+		_, err = locker.Client.Session().Destroy(locker.SessionID, nil)
+		locker.SessionID = ""
 		return err
 	}
 	return
 }
 
-func (lock *Locker) ObtainLock(key string) (acquired bool, err error) {
-	// err = lock.CheckSession()
+func (locker *Locker) ObtainLock(key string) (acquired bool, err error) {
+	// err = locker.CheckSession()
 	if err != nil {
 		return
 	}
 
 	value := LockDetail{
-		SessionID: lock.SessionID,
+		SessionID: locker.SessionID,
 		Extend:    0,
 	}
 
@@ -158,14 +159,14 @@ func (lock *Locker) ObtainLock(key string) (acquired bool, err error) {
 		return false, err
 	}
 
-	// Use the session to acquire a lock
+	// Use the session to acquire a locker
 	lockOpts := &api.KVPair{
 		Key:     key,
 		Value:   b,
-		Session: lock.SessionID,
+		Session: locker.SessionID,
 	}
 
-	acquired, _, err = lock.Client.KV().Acquire(lockOpts, nil)
+	acquired, _, err = locker.Client.KV().Acquire(lockOpts, nil)
 	if err != nil {
 		panic(err)
 	}
@@ -173,9 +174,9 @@ func (lock *Locker) ObtainLock(key string) (acquired bool, err error) {
 	return
 }
 
-func (lock *Locker) UnLock(key string) (acquired bool, err error) {
+func (locker *Locker) UnLock(key string) (acquired bool, err error) {
 	var keyPair *api.KVPair
-	keyPair, _, err = lock.Client.KV().Get(key, nil)
+	keyPair, _, err = locker.Client.KV().Get(key, nil)
 	if err != nil {
 		return
 	}
@@ -183,12 +184,12 @@ func (lock *Locker) UnLock(key string) (acquired bool, err error) {
 	var keyValue LockDetail
 	err = json.Unmarshal(keyPair.Value, &keyValue)
 
-	if lock.SessionID != keyValue.SessionID {
+	if locker.SessionID != keyValue.SessionID {
 		fmt.Println("delete err")
 		return
 	}
 
-	_, err = lock.Client.KV().Delete(key, nil)
+	_, err = locker.Client.KV().Delete(key, nil)
 	if err != nil {
 		panic(err)
 	}

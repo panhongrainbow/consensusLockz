@@ -1,6 +1,14 @@
 package lockz
 
-import "github.com/hashicorp/consul/api"
+import (
+	"github.com/hashicorp/consul/api"
+	"sync"
+	"time"
+)
+
+const (
+	DEFAULT_SESSION_TIMEOUT = "10s" // Seconds
+)
 
 const (
 	STATUS_LOCK_CHECKED_OPTIONS uint32 = iota + 1
@@ -10,6 +18,20 @@ const (
 	STATUS_LOCK_COMPETITION
 	STATUS_LOCK_LOCKING
 	STATUS_LOCK_EXTENDED_LIMIT
+)
+
+type Error string
+
+func (e Error) Error() string {
+	return string(e)
+}
+
+const (
+	ERROR_CANNOT_EXTEND   = Error("distributed lock error because the lease cannot be extended")
+	ERROR_OCCPUY_BY_OTHER = Error("distributed lock error because the lock was occupied by others")
+	ERROR_LOCK_RELEASED   = Error("distributed lock error because the lock was released")
+	ERROR_LOCK_NO_CHANGE  = Error("distributed lock error because no changes in the TTL duration")
+	ERROR_NO_AUTH_DEL     = Error("distributed lock error because there is no permission to delete the key")
 )
 
 // Locker is the distributed lock entity.
@@ -25,23 +47,68 @@ type Locker struct {
 // doneAndReleaseLock is the signal to send when the work is done to release the lock.
 type doneAndReleaseLock struct{}
 
+// LockDetail needs to be written into the lock key of Consul.
+type LockDetail struct {
+	SessionID  string    `json:"session_id"`
+	Extend     int       `json:"extend"`
+	UpdateTime time.Time `json:"update_time"`
+}
+
+// The distributed lock needs to ensure that it is not accessed by multiple goroutines.
+// The singleGoroutineLock is used for protection.
+// Since the distributed lock follows a two-phase acquisition approach, there should be no need to specifically use a mutex lock.
+var singleGoroutineLock sync.Mutex
+
+// NewLocker creates a locker entity.
+func NewLocker(opts Options) (locker Locker, err error) {
+	// Reload Session TTL
+	err = locker.ReloadSessionTTL()
+	if err != nil {
+		return
+	}
+
+	// The following code block needs to ensure that it is not accessed by multiple goroutines.
+	// The singleGoroutineLock is used for protection.
+	// Since the distributed lock follows a two-phase acquisition approach, there should be no need to specifically use a mutex lock.
+	singleGoroutineLock.Lock() // <----- single goroutine lock
+
+	// Create a consul client
+	locker.Opts = opts
+	err = locker.CreateClient()
+
+	// SessionID is only available when the lock is acquired.
+	// I want to ensure that when the lock is not acquired, the SessionID immediately becomes empty.
+	// (没抢到锁，立刻为空)
+
+	// Set the channel for releasing the lock
+	locker.release = make(chan doneAndReleaseLock)
+
+	// Change the status to initialization.
+	locker.status = STATUS_LOCK_INITED
+
+	// Unlock single goroutine Lock
+	singleGoroutineLock.Unlock() // <----- single goroutine unlock
+
+	return
+}
+
 // CreateClient initializes a locker client.
 func (locker *Locker) CreateClient() (err error) {
-	// If client is nil, proceed to create one.
+	// If a client is nil, proceed to create one.
 	if locker.client == nil {
 		// Use default config
 		config := api.DefaultConfig()
 		if locker.Opts.IpAddressPort != "" {
 			config.Address = locker.Opts.IpAddressPort
 		}
-		// Create client based on config
+		// Create a client based on config
 		locker.client, err = api.NewClient(api.DefaultConfig())
 		if err != nil {
 			return
 		}
 	}
 
-	// Return no error if client created or already exists
+	// Return no error if a client created or already exists
 	return
 }
 

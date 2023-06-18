@@ -3,11 +3,11 @@ package lockz
 import "time"
 
 func (locker *Locker) Extend(key string) (err error) {
-	ticker := time.NewTicker(locker.Opts.RenewPeriod)
+	ticker := time.NewTicker(locker.Opts.ExtendPeriod)
 	for {
 		select {
 		case <-ticker.C:
-			_, _, err = locker.Client.Session().Renew(locker.SessionID, nil)
+			_, _, err = locker.client.Session().Renew(locker.sessionID, nil)
 			if err != nil {
 				return
 			}
@@ -15,7 +15,7 @@ func (locker *Locker) Extend(key string) (err error) {
 			if err != nil {
 				return
 			}
-		case <-locker.cancel:
+		case <-locker.release:
 			err = locker.DestroySession()
 			return
 		}
@@ -25,6 +25,6 @@ func (locker *Locker) Extend(key string) (err error) {
 }
 
 func (locker *Locker) Cancel() (err error) {
-	locker.cancel <- done{}
+	locker.release <- doneAndReleaseLock{}
 	return
 }

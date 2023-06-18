@@ -6,38 +6,9 @@ import (
 	"github.com/hashicorp/consul/api"
 )
 
-func (locker *Locker) Lock(key string) (acquired bool, err error) {
-	//
-	err = locker.SwitchWaitLockSession()
-	if err != nil {
-		return
-	}
-	_, err = locker.GetLockDetailNonblocking(key)
-	switch err {
-	case ERROR_OCCPUY_BY_OTHER, ERROR_CANNOT_EXTEND:
-		err = locker.BlockOnReleased(key)
-		if err == ERROR_LOCK_RELEASED {
-			err = locker.SwitchNewLockSession()
-			if err != nil {
-				return
-			}
-			return locker.ObtainLock(key)
-		}
-	case ERROR_LOCK_RELEASED:
-		err = locker.SwitchNewLockSession()
-		if err != nil {
-			return
-		}
-		return locker.ObtainLock(key)
-	default:
-		return
-	}
-	return
-}
-
 func (locker *Locker) Incr(key string) (err error) {
 	var keyPair *api.KVPair
-	keyPair, _, err = locker.Client.KV().Get(key, nil)
+	keyPair, _, err = locker.client.KV().Get(key, nil)
 	if err != nil {
 		return
 	}
@@ -50,7 +21,7 @@ func (locker *Locker) Incr(key string) (err error) {
 	var keyValue LockDetail
 	err = json.Unmarshal(keyPair.Value, &keyValue)
 
-	if locker.SessionID != keyValue.SessionID {
+	if locker.sessionID != keyValue.SessionID {
 		err = ERROR_OCCPUY_BY_OTHER
 		return
 	}
@@ -61,7 +32,7 @@ func (locker *Locker) Incr(key string) (err error) {
 	}
 
 	value := LockDetail{
-		SessionID: locker.SessionID,
+		SessionID: locker.sessionID,
 		Extend:    keyValue.Extend + 1,
 	}
 
@@ -73,71 +44,21 @@ func (locker *Locker) Incr(key string) (err error) {
 	lockOpts := &api.KVPair{
 		Key:     key,
 		Value:   b,
-		Session: locker.SessionID,
+		Session: locker.sessionID,
 	}
 
-	_, err = locker.Client.KV().Put(lockOpts, nil)
+	_, err = locker.client.KV().Put(lockOpts, nil)
 	if err != nil {
 		return
 	}
 
 	return
-}
-
-func (locker *Locker) GetLockDetailNonblocking(key string) (lockDetail LockDetail, err error) {
-	var keyPair *api.KVPair
-	keyPair, _, err = locker.Client.KV().Get(key, nil)
-	if err != nil {
-		return
-	}
-
-	if keyPair == nil {
-		err = ERROR_LOCK_RELEASED
-		return
-	}
-
-	err = json.Unmarshal(keyPair.Value, &lockDetail)
-	if err != nil {
-		return
-	}
-
-	if lockDetail.Extend >= locker.Opts.ExtendLimit {
-		err = ERROR_CANNOT_EXTEND
-	}
-
-	if lockDetail.SessionID != locker.SessionID {
-		err = ERROR_OCCPUY_BY_OTHER
-	}
-
-	return
-}
-
-func (locker *Locker) BlockOnReleased(key string) (err error) {
-	var keyPair *api.KVPair
-	var queryMeta *api.QueryMeta
-
-	// start blocking
-	q := &api.QueryOptions{WaitIndex: 0}
-	for {
-		keyPair, queryMeta, err = locker.Client.KV().Get(key, q)
-
-		if keyPair == nil {
-			err = ERROR_LOCK_RELEASED
-			return
-		}
-
-		if err != nil {
-			return
-		}
-
-		q.WaitIndex = queryMeta.LastIndex
-	}
 }
 
 func (locker *Locker) TryLock(key string) (err error) {
-	if locker.SessionID != "" {
-		_, err = locker.Client.Session().Destroy(locker.SessionID, nil)
-		locker.SessionID = ""
+	if locker.sessionID != "" {
+		_, err = locker.client.Session().Destroy(locker.sessionID, nil)
+		locker.sessionID = ""
 		return err
 	}
 	return
@@ -150,7 +71,7 @@ func (locker *Locker) ObtainLock(key string) (acquired bool, err error) {
 	}
 
 	value := LockDetail{
-		SessionID: locker.SessionID,
+		SessionID: locker.sessionID,
 		Extend:    0,
 	}
 
@@ -163,10 +84,10 @@ func (locker *Locker) ObtainLock(key string) (acquired bool, err error) {
 	lockOpts := &api.KVPair{
 		Key:     key,
 		Value:   b,
-		Session: locker.SessionID,
+		Session: locker.sessionID,
 	}
 
-	acquired, _, err = locker.Client.KV().Acquire(lockOpts, nil)
+	acquired, _, err = locker.client.KV().Acquire(lockOpts, nil)
 	if err != nil {
 		panic(err)
 	}
@@ -176,7 +97,7 @@ func (locker *Locker) ObtainLock(key string) (acquired bool, err error) {
 
 func (locker *Locker) UnLock(key string) (acquired bool, err error) {
 	var keyPair *api.KVPair
-	keyPair, _, err = locker.Client.KV().Get(key, nil)
+	keyPair, _, err = locker.client.KV().Get(key, nil)
 	if err != nil {
 		return
 	}
@@ -184,12 +105,12 @@ func (locker *Locker) UnLock(key string) (acquired bool, err error) {
 	var keyValue LockDetail
 	err = json.Unmarshal(keyPair.Value, &keyValue)
 
-	if locker.SessionID != keyValue.SessionID {
+	if locker.sessionID != keyValue.SessionID {
 		fmt.Println("delete err")
 		return
 	}
 
-	_, err = locker.Client.KV().Delete(key, nil)
+	_, err = locker.client.KV().Delete(key, nil)
 	if err != nil {
 		panic(err)
 	}

@@ -58,15 +58,15 @@ func (locker *Locker) Incr(key string) (err error) {
 	var keyValue LockDetail
 	err = json.Unmarshal(keyPair.Value, &keyValue)
 
-	// If the session ID does not match, return ERROR_OCCPUY_BY_OTHER
-	if locker.sessionID != keyValue.SessionID {
-		err = ERROR_OCCPUY_BY_OTHER
-		return
-	}
-
 	// If the ExtendLimit is reached, return ERROR_CANNOT_EXTEND
 	if locker.Opts.ExtendLimit <= keyValue.Extend {
 		err = ERROR_CANNOT_EXTEND
+		return
+	}
+
+	// If the session ID does not match, return ERROR_OCCUPY_BY_OTHER
+	if locker.sessionID != keyValue.SessionID {
+		err = ERROR_OCCUPY_BY_OTHER
 		return
 	}
 

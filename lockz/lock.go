@@ -12,7 +12,7 @@ func (locker *Locker) Lock(key string) (acquired bool, err error) {
 	_ = locker.DestroySession()
 
 	// If client connection status changed, recreate a client
-	if locker.status == STATUS_IP_ADDRESS_PORT_ALTERED {
+	if locker.reestablish == true {
 		locker.client = nil
 		err = locker.CreateClient()
 		if err != nil {
@@ -21,9 +21,9 @@ func (locker *Locker) Lock(key string) (acquired bool, err error) {
 	}
 
 	// Check the lock status
-	_, err = locker.FollowLockStatus(key)
+	_, err = locker.LockStatus(key)
 	switch err {
-	case ERROR_OCCPUY_BY_OTHER, ERROR_CANNOT_EXTEND:
+	case ERROR_OCCUPY_BY_OTHER, ERROR_CANNOT_EXTEND:
 		err = locker.BlockOnReleased(key)
 		if err != ERROR_LOCK_RELEASED {
 			// If there are unknown errors, just directly return the error!
@@ -72,8 +72,8 @@ func (locker *Locker) UnLock(key string) (acquired bool, err error) {
 	return
 }
 
-// FollowLockStatus queries lock status, validating ownership and limits not exceeded
-func (locker *Locker) FollowLockStatus(key string) (lockDetail LockDetail, err error) {
+// LockStatus queries lock status, validating ownership and limits not exceeded util the lock
+func (locker *Locker) LockStatus(key string) (lockDetail LockDetail, err error) {
 	// Get the key-value pair for the key
 	var keyPair *api.KVPair
 	keyPair, _, err = locker.client.KV().Get(key, nil)
@@ -81,7 +81,8 @@ func (locker *Locker) FollowLockStatus(key string) (lockDetail LockDetail, err e
 		return
 	}
 
-	// If no key-value pair is returned, the lock has been released. Return error.
+	// If no key-value pair is returned, the lock has been released. Return ERROR_LOCK_RELEASED.
+	// (Know it for the first time, hurry up and lock it !)
 	if keyPair == nil {
 		err = ERROR_LOCK_RELEASED
 		return
@@ -93,14 +94,16 @@ func (locker *Locker) FollowLockStatus(key string) (lockDetail LockDetail, err e
 		return
 	}
 
-	// If the lock has been extended beyond the limit, return error
+	// If the lock has been extended beyond the limit, return ERROR_CANNOT_EXTEND.
+	// (Unlock soon, ready to grab the lock !)
 	if lockDetail.Extend >= locker.Opts.ExtendLimit {
 		err = ERROR_CANNOT_EXTEND
 	}
 
 	// If the lock session ID does not match, return error
+	// (The lock is still occupied, just wait !)
 	if lockDetail.SessionID != locker.sessionID {
-		err = ERROR_OCCPUY_BY_OTHER
+		err = ERROR_OCCUPY_BY_OTHER
 	}
 
 	// Return the LockDetail and no error if validation succeeds

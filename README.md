@@ -153,6 +153,8 @@ Use the following commands to shutdown Consul Cluster
 $ sudo docker stop $(sudo docker ps -aq --no-trunc -f ancestor=consul)
 ```
 
+https://developer.hashicorp.com/consul/docs/dynamic-app-config/sessions
+
 1. Consul的架構是什么?它由哪幾個部分組成?
    Consul由Server, Client, UI等幾个部分組成。
    Server負責存儲數據和處理查詢請求

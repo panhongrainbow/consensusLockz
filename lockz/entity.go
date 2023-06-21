@@ -2,7 +2,6 @@ package lockz
 
 import (
 	"github.com/hashicorp/consul/api"
-	"sync"
 	"time"
 )
 
@@ -60,11 +59,6 @@ type LockDetail struct {
 	UpdateTime time.Time `json:"update_time"`
 }
 
-// The distributed lock needs to ensure that it is not accessed by multiple goroutines.
-// The singleGoroutineLock is used for protection.
-// Since the distributed lock follows a two-phase acquisition approach, there should be no need to specifically use a mutex lock.
-var singleGoroutineLock sync.Mutex
-
 // NewLocker creates a locker entity.
 func NewLocker(opts Options) (locker Locker, err error) {
 	// Reload Session TTL
@@ -72,11 +66,6 @@ func NewLocker(opts Options) (locker Locker, err error) {
 	if err != nil {
 		return
 	}
-
-	// The following code block needs to ensure that it is not accessed by multiple goroutines.
-	// The singleGoroutineLock is used for protection.
-	// Since the distributed lock follows a two-phase acquisition approach, there should be no need to specifically use a mutex lock.
-	singleGoroutineLock.Lock() // <----- single goroutine lock
 
 	// Create a consul client
 	locker.Opts = opts
@@ -91,9 +80,6 @@ func NewLocker(opts Options) (locker Locker, err error) {
 
 	// Change the status to initialization.
 	locker.status = STATUS_LOCK_INITED
-
-	// Unlock single goroutine Lock
-	singleGoroutineLock.Unlock() // <----- single goroutine unlock
 
 	return
 }

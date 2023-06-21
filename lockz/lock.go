@@ -169,6 +169,11 @@ func (locker *Locker) TryLock(key string) (acquired bool, err error) {
 		return
 	}
 
+	// If the lock acquisition fails, delete the session immediately.
+	if acquired == false {
+		_ = locker.DestroySession()
+	}
+
 	// Return acquired status and no error on success
 	return
 }

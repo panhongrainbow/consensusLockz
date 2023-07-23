@@ -15,7 +15,7 @@ func (locker *Locker) NewSession() (err error) {
 		Name:      "consensusLockz",
 		Behavior:  "delete",
 		TTL:       locker.sessionTTL,
-		LockDelay: locker.Opts.LockDelay,
+		LockDelay: locker.Opts.Basic.LockDelay,
 	}
 
 	// Create a new session
@@ -39,10 +39,10 @@ func (locker *Locker) DestroySession() (err error) {
 
 // ReloadSessionTTL reloads the time-to-live (TTL) value for a session in a locker.
 func (locker *Locker) ReloadSessionTTL() (err error) {
-	if locker.Opts.SessionTTL == 0 {
+	if locker.Opts.Basic.SessionTTL == 0 {
 		locker.sessionTTL = DEFAULT_SESSION_TIMEOUT
 	} else {
-		locker.sessionTTL = strconv.Itoa(int(locker.Opts.SessionTTL.Seconds())) + "s"
+		locker.sessionTTL = strconv.Itoa(int(locker.Opts.Basic.SessionTTL.Seconds())) + "s"
 	}
 	return
 }

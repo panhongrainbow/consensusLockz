@@ -1,0 +1,16 @@
+@startuml
+
+participant "locker0" as l0
+participant "locker1" as l1
+
+loop 10 times
+  l0 -> l0++: Lock("lock_test")
+  l0 -->> l0++: Lock acquired
+  l0 -> l0--: Unlock("lock_test")
+
+  l1 -> l1++: Lock("lock_test")
+  l1 -->> l1++: Lock acquired
+  l1 -> l1--: Unlock("lock_test")
+end loop
+
+@enduml

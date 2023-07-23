@@ -12,7 +12,7 @@ func Test_Check_Locker(t *testing.T) {
 	var locker Locker
 	var err error
 	// Create new locker with empty options
-	locker, err = NewLocker(Options{})
+	locker, err = NewLocker(BasicOptions{})
 	require.NoError(t, err)
 
 	// Save old client
@@ -22,9 +22,9 @@ func Test_Check_Locker(t *testing.T) {
 	err = locker.AlterClient("127.0.0.1:8501")
 	require.NoError(t, err)
 
-	// Check that locker client is not nil and reestablish is true
+	// Check that locker client is not nil and reEstablish is true
 	require.NotNil(t, locker.client)
-	require.Equal(t, true, locker.reestablish)
+	require.Equal(t, true, locker.reEstablish)
 	// (Only when executing the Lock() function will it be re-established this client !)
 
 	// Check that old client is equal to the locker client

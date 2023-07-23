@@ -12,7 +12,7 @@ func (locker *Locker) Lock(key string) (acquired bool, err error) {
 	_ = locker.DestroySession()
 
 	// If client connection status changed, recreate a client
-	if locker.reestablish == true {
+	if locker.reEstablish == true {
 		locker.client = nil
 		err = locker.CreateClient()
 		if err != nil {
@@ -96,7 +96,7 @@ func (locker *Locker) LockStatus(key string) (lockDetail LockDetail, err error) 
 
 	// If the lock has been extended beyond the limit, return ERROR_CANNOT_EXTEND.
 	// (Unlock soon, ready to grab the lock !)
-	if lockDetail.Extend >= locker.Opts.ExtendLimit {
+	if lockDetail.Extend >= locker.Opts.Basic.ExtendLimit {
 		err = ERROR_CANNOT_EXTEND
 	}
 

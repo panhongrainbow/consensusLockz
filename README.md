@@ -1,5 +1,38 @@
 # consensusLockz
 
+## Consul
+
+### Architecture
+
+[The Architecture Of Consul](https://developer.hashicorp.com/consul/docs/architecture)
+
+
+
+
+
+
+
+
+
+
+
+
+
+1. Consul的架構是什么?它由哪幾個部分組成?
+   Consul由Server, Client, UI等幾个部分組成。
+   Server負責存儲數據和處理查詢請求
+   Client負責健康檢查和服務注册,UI提供웹頁界面進行操作。
+2. Consul支援哪些服務發現模式?解释一下每种模式。
+   Consul支援DNS查詢, HTTP API, DNS SRV記錄等多種服務發現模式。每种模式具有不同的應用場景和優缺點。
+3. Consul的Consensus算法是什么?為什么選擇Raft算法?
+   Consul使用Raft算法實現分布式一致性Consensus。Raft算法是一種便於理解和實現的分布式一致算法,可以在可變的系統拓撲中實現強一致性,這正是Consul server需要的特性,所以選擇了Raft算法。
+4. Consul中Client到Server的RPC運行機制是怎樣的?
+   Client和Server之間的RPC通信基於gRPC框架。Client會定期向Server註冊其提供的服務和健康信息。Server則回復該Client最新的配置和數據等信息。這樣Client和Server之間能夠保持強一致的數據信息。
+
+
+
+
+
 ## Consul v.s. Redis
 
 The reasons for using `Consul` to implement distributed locks
@@ -103,7 +136,7 @@ $ docker pull consul
 Run single Consul
 
 ```bash
-$ docker run --rm -it -p 8500:8500 --name=ConsulDevServer consul agent -dev -client=0.0.0.0
+$ podman/docker run --rm -it -p 8500:8500 --name=ConsulDevServer consul agent -dev -client=0.0.0.0
 ```
 
 It provides a UI page
@@ -117,9 +150,9 @@ $ firefox 127.0.0.1:8500
 Start Consul Cluster
 
 ```bash
-$ docker run --rm -d -p 8500:8500 -p 8600:8600 --name=ConsulServerA consul agent -server -ui -node=ServerA -bootstrap-expect=3 -client=0.0.0.0
+$ podman/docker run --rm -d -p 8500:8500 -p 8600:8600 --name=ConsulServerA consul agent -server -ui -node=ServerA -bootstrap-expect=3 -client=0.0.0.0
 
-$ docker ps -a
+$ podman/docker ps -a
 # CONTAINER ID  IMAGE  COMMAND  CREATED  STATUS  PORTS  NAMES
 # 5fa3798d473b   consul    "docker-entrypoint.s…"   24 seconds ago   Up 12 seconds   8301-8302/udp, 0.0.0.0:8500->8500/tcp, :::8500->8500/tcp, 8300-8302/tcp, 8600/udp, 0.0.0.0:8600->8600/tcp, :::8600->8600/tcp   ConsulServerA
 
@@ -128,15 +161,15 @@ $ docker ps -a
 # "IPAddress": "172.17.0.2",
 # ...
 
-$ docker run --rm -d -p 8501:8500 -p 8601:8600 --name=ConsulServerB consul agent -server -ui -node=ServerB -bootstrap-expect=3 -client=0.0.0.0 -join=172.17.0.2
+$ podman/docker run --rm -d -p 8501:8500 -p 8601:8600 --name=ConsulServerB consul agent -server -ui -node=ServerB -bootstrap-expect=3 -client=0.0.0.0 -join=172.17.0.2
 
-$ docker run --rm -d -p 8502:8500 -p 8602:8600 --name=ConsulServerC consul agent -server -ui -node=ServerC -bootstrap-expect=3 -client=0.0.0.0 -join=172.17.0.2
+$ podman/docker run --rm -d -p 8502:8500 -p 8602:8600 --name=ConsulServerC consul agent -server -ui -node=ServerC -bootstrap-expect=3 -client=0.0.0.0 -join=172.17.0.2
 
-$ docker run --rm -d -p 8503:8500 -p 8603:8600 --name=ConsulClient1 consul agent -node=Client1 -ui -client=0.0.0.0 -join=172.17.0.2
+$ podman/docker run --rm -d -p 8503:8500 -p 8603:8600 --name=ConsulClient1 consul agent -node=Client1 -ui -client=0.0.0.0 -join=172.17.0.2
 
-$ docker run --rm -d -p 8504:8500 -p 8604:8600 --name=ConsulClient2 consul agent -node=Client2 -ui -client=0.0.0.0 -join=172.17.0.2
+$ podman/docker run --rm -d -p 8504:8500 -p 8604:8600 --name=ConsulClient2 consul agent -node=Client2 -ui -client=0.0.0.0 -join=172.17.0.2
 
-$ docker run --rm -d -p 8505:8500 -p 8605:8600 --name=ConsulClient3 consul agent -node=Client3 -ui -client=0.0.0.0 -join=172.17.0.2
+$ podman/docker run --rm -d -p 8505:8500 -p 8605:8600 --name=ConsulClient3 consul agent -node=Client3 -ui -client=0.0.0.0 -join=172.17.0.2
 ```
 
 Open the Consul Cluster web page
@@ -150,18 +183,7 @@ Open the Consul Cluster web page
 Use the following commands to shutdown Consul Cluster
 
 ```bash
-$ sudo docker stop $(sudo docker ps -aq --no-trunc -f ancestor=consul)
+$ sudo podman/docker stop $(sudo docker ps -aq --no-trunc -f ancestor=consul)
 ```
 
 https://developer.hashicorp.com/consul/docs/dynamic-app-config/sessions
-
-1. Consul的架構是什么?它由哪幾個部分組成?
-   Consul由Server, Client, UI等幾个部分組成。
-   Server負責存儲數據和處理查詢請求
-   Client負責健康檢查和服務注册,UI提供웹頁界面進行操作。
-2. Consul支援哪些服務發現模式?解释一下每种模式。
-   Consul支援DNS查詢, HTTP API, DNS SRV記錄等多種服務發現模式。每种模式具有不同的應用場景和優缺點。
-3. Consul的Consensus算法是什么?為什么選擇Raft算法?
-   Consul使用Raft算法實現分布式一致性Consensus。Raft算法是一種便於理解和實現的分布式一致算法,可以在可變的系統拓撲中實現強一致性,這正是Consul server需要的特性,所以選擇了Raft算法。
-4. Consul中Client到Server的RPC運行機制是怎樣的?
-   Client和Server之間的RPC通信基於gRPC框架。Client會定期向Server註冊其提供的服務和健康信息。Server則回復該Client最新的配置和數據等信息。這樣Client和Server之間能夠保持強一致的數據信息。

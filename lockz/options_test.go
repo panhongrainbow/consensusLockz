@@ -10,12 +10,12 @@ import (
 func Test_Check_CheckOpts(t *testing.T) {
 	tests := []struct {
 		description string
-		opts        Options
+		opts        BasicOptions
 		err         error
 	}{
 		{
 			description: "Valid options",
-			opts: Options{
+			opts: BasicOptions{
 				IpAddressPort: "127.0.0.1:8080",
 				SessionTTL:    10,
 				ExtendPeriod:  5,
@@ -26,7 +26,7 @@ func Test_Check_CheckOpts(t *testing.T) {
 		},
 		{
 			description: "Invalid IpAddressPort",
-			opts: Options{
+			opts: BasicOptions{
 				IpAddressPort: "127.0.0.1",
 				SessionTTL:    10,
 				ExtendPeriod:  5,
@@ -37,7 +37,7 @@ func Test_Check_CheckOpts(t *testing.T) {
 		},
 		{
 			description: "Negative SessionTTL",
-			opts: Options{
+			opts: BasicOptions{
 				IpAddressPort: "127.0.0.1:8080",
 				SessionTTL:    -10,
 				ExtendPeriod:  5,
@@ -48,7 +48,7 @@ func Test_Check_CheckOpts(t *testing.T) {
 		},
 		{
 			description: "Negative ExtendPeriod",
-			opts: Options{
+			opts: BasicOptions{
 				IpAddressPort: "127.0.0.1:8080",
 				SessionTTL:    10,
 				ExtendPeriod:  -5,
@@ -59,7 +59,7 @@ func Test_Check_CheckOpts(t *testing.T) {
 		},
 		{
 			description: "Negative LockDelay",
-			opts: Options{
+			opts: BasicOptions{
 				IpAddressPort: "127.0.0.1:8080",
 				SessionTTL:    10,
 				ExtendPeriod:  5,
@@ -70,7 +70,7 @@ func Test_Check_CheckOpts(t *testing.T) {
 		},
 		{
 			description: "ExtendLimit is ignored",
-			opts: Options{
+			opts: BasicOptions{
 				IpAddressPort: "127.0.0.1:8080",
 				SessionTTL:    10,
 				ExtendPeriod:  5,
@@ -82,7 +82,7 @@ func Test_Check_CheckOpts(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		err := CheckOpts(test.opts)
+		err := CheckBasicOpts(test.opts)
 		require.Equal(t, test.err, err)
 	}
 }

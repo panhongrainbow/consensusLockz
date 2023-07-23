@@ -1,0 +1,46 @@
+@startuml
+
+actor User
+participant "Locker" as locker
+participant "KV Store\n(Consul)" as kv
+
+User -> locker++: Lock(key)
+locker -> locker++: DestroySession()
+locker -> locker: RecreateClient()
+locker -> kv++: Get(key)
+kv -->> locker++: Return status
+
+alt ERROR_LOCK_RELEASED
+  locker -> locker++: NewSession()
+  locker -> kv++: TryLock(key)\nusing session
+else ERROR_CANNOT_EXTEND
+  locker -> locker++: BlockOnReleased(key)
+  loop poll KV
+    locker -> kv++: Get(key)
+    kv -->> locker++: Return status
+  end
+  locker -> locker++: NewSession()
+  locker -> kv++: TryLock(key)\nusing session
+else ERROR_OCCUPY_BY_OTHER
+  locker -> locker++: BlockOnReleased(key)
+  loop poll KV
+    locker -> kv++: Get(key)
+    kv -->> locker++: Return status
+  end
+  locker -> locker++: NewSession()
+  locker -> kv++: TryLock(key)\nusing session
+else
+  locker -> locker++: Return error
+end
+
+locker -->> User++: Return result
+
+User -> locker++: Unlock(key)
+locker -> kv++: Get(key)
+kv -->> locker++: Return KV pair
+locker -> kv++: Delete(key)
+kv -->> locker++: Deleted
+
+locker -->> User++: Return result
+
+@enduml

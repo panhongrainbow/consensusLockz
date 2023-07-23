@@ -9,7 +9,7 @@ import (
 // Extend continuously extends a distributed lock identified by a key by renewing the session.
 func (locker *Locker) Extend(key string) (err error) {
 	// Create a ticker for the extended period
-	ticker := time.NewTicker(locker.Opts.ExtendPeriod)
+	ticker := time.NewTicker(locker.Opts.Basic.ExtendPeriod)
 	// Loop continuously
 	for {
 		// Select on either the ticker or release channel
@@ -59,7 +59,7 @@ func (locker *Locker) Incr(key string) (err error) {
 	err = json.Unmarshal(keyPair.Value, &keyValue)
 
 	// If the ExtendLimit is reached, return ERROR_CANNOT_EXTEND
-	if locker.Opts.ExtendLimit <= keyValue.Extend {
+	if locker.Opts.Basic.ExtendLimit <= keyValue.Extend {
 		err = ERROR_CANNOT_EXTEND
 		return
 	}

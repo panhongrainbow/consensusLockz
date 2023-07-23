@@ -13,7 +13,7 @@ func Test_Check_Extend(t *testing.T) {
 	// Create new locker with empty options
 	var locker Locker
 	var err error
-	locker, err = NewLocker(Options{
+	locker, err = NewLocker(BasicOptions{
 		SessionTTL:   3 * time.Second,
 		ExtendPeriod: 2 * time.Second,
 		ExtendLimit:  3,
@@ -78,7 +78,7 @@ func Test_Check_Incr(t *testing.T) {
 	// Create new locker with empty options
 	var locker Locker
 	var err error
-	locker, err = NewLocker(Options{
+	locker, err = NewLocker(BasicOptions{
 		SessionTTL:   10 * time.Second, // (Just set enough time to accumulate the Incr amount !)
 		ExtendPeriod: 9 * time.Second,  // (Just set enough time to accumulate the Incr amount !)
 		ExtendLimit:  20,               // (Just set enough time to accumulate the Incr amount !)
@@ -113,7 +113,7 @@ func Test_Check_Cancel(t *testing.T) {
 	// Create new locker with empty options
 	var locker Locker
 	var err error
-	locker, err = NewLocker(Options{
+	locker, err = NewLocker(BasicOptions{
 		SessionTTL:   10 * time.Second,
 		ExtendPeriod: 9 * time.Second,
 		ExtendLimit:  1,

@@ -11,13 +11,16 @@ func Test_Check_Lock(t *testing.T) {
 	// Create a new locker with a session TTL of 3 seconds
 	var locker0, locker1 Locker
 	var err error
-	locker0, err = NewLocker(Options{
-		SessionTTL: 3 * time.Second,
+	locker0, err = NewLocker(BasicOptions{
+		Driver:        "consul",
+		IpAddressPort: TestConsulIPPort,
+		SessionTTL:    3 * time.Second,
 	})
 	require.NoError(t, err)
 
 	// Create a new locker with a session TTL of 3 seconds
-	locker1, err = NewLocker(Options{
+	locker1, err = NewLocker(BasicOptions{
+		Driver:     "consul",
 		SessionTTL: 3 * time.Second,
 	})
 	require.NoError(t, err)

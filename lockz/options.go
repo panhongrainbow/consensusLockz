@@ -4,6 +4,7 @@ import (
 	"net"
 	"strconv"
 	"strings"
+	"testing"
 	"time"
 )
 
@@ -15,18 +16,66 @@ const (
 	ERROR_LOCK_DELAY_FORMAT      = Error("lock options error because ip and the lock delay format is not correct")
 )
 
-type Options struct {
-	IpAddressPort string        // The address of the lock service, such as a Consul address
-	SessionTTL    time.Duration // The lifetime of a session in the lock service
-	ExtendPeriod  time.Duration // The period to extend a session before it expires
+// The following design utilizes [Function Options Pattern].
+// Reference: https://www.sohamkamani.com/golang/options-pattern/
+
+// SetOptsFunc is a type of function that sets options for LockerOptions.
+type SetOptsFunc func(*LockerOptions)
+
+// WithBasicOptions is a function that creates a SetOptsFunc to set BasicOptions.
+func WithBasicOptions(basic BasicOptions) SetOptsFunc {
+	return func(lockerOpts *LockerOptions) {
+		lockerOpts.Basic = basic
+	}
+}
+
+// WithMockOptions is a function that creates a SetOptsFunc to set MockOptions.
+func WithMockOptions(mock MockOptions) SetOptsFunc {
+	return func(lockerOpts *LockerOptions) {
+		lockerOpts.Mock = &mock
+	}
+}
+
+// LockerOptions is the collection of configuration files
+type LockerOptions struct {
+	Basic BasicOptions
+	Mock  *MockOptions
+}
+
+// NewLockerOptions is a function that creates a new instance of LockerOptions with the provided options.
+func NewLockerOptions(funcs ...SetOptsFunc) LockerOptions {
+	optCollection := LockerOptions{}
+
+	// Apply each SetOptsFunc to the optCollection to set the corresponding options
+	for _, eachFunc := range funcs {
+		eachFunc(&optCollection)
+	}
+
+	return optCollection
+}
+
+// BasicOptions is the most commonly used configuration values.
+type BasicOptions struct {
+	Driver        string        // Can choose between consul and mock as the driver type.
+	IpAddressPort string        // The address of the lock service, such as a Consul address.
+	SessionTTL    time.Duration // The lifetime of a session in the lock service.
+	ExtendPeriod  time.Duration // The period to extend a session before it expires.
 	LockDelay     time.Duration // Allow temporary interruption time when locking on consul.
-	ExtendLimit   int           // The maximum number of times a lock may be extended
+	ExtendLimit   int           // The maximum number of times a lock may be extended.
+}
+
+// MockOptions that are only needed for mocking
+// should be made into pointers, to avoid taking up unnecessary memory space.
+type MockOptions struct {
+	t                   *testing.T // There's no other way. The Mock requires me to pass in this parameter, forcing me to separate out the mock config values.
+	ServerIpAddressPort string     // The address of the mock service, such as a mock server address.
+	MockSchema          string     // This part should be made into a configuration file later, in order to reduce the size of the main program.
 }
 
 // >>>>> >>>>> >>>>> >>>>> >>>>>> for IpAddressPort Option
 
-// CheckOpts validates locker options.
-func CheckOpts(opts Options) (err error) {
+// CheckBasicOpts validates locker options.
+func CheckBasicOpts(opts BasicOptions) (err error) {
 	// Check if IpAddressPort option is valid
 	err = CheckIpAddressPort(opts.IpAddressPort)
 	if err != nil {
